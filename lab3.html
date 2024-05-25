@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Slottish</title>
+  <!-- Include Three.js library -->
+  <script type="x-shader/x-vertex" id="vertexShader">
+
+  attribute vec3 center;
+  varying vec3 vCenter;
+
+  void main() {
+
+    vCenter = center;
+
+    gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+  }
+
+</script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/17.2.0/Tween.js"></script>
+  <script type="module">
+
+  import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
+  
+  //import * as THREE from 'three';
+
+  import Stats from 'three/addons/libs/stats.module.js';
+  import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+  import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+  import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+  //import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+  import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
+  import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+  import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+  import { IcosahedronGeometry } from '../js/three.js-master/src/geometries/IcosahedronGeometry.js';
+  import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+  import { Lut } from 'three/addons/math/Lut.js';
+  import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+  import { LUTPass } from 'three/addons/postprocessing/LUTPass.js';
+  import { LUTCubeLoader } from 'three/addons/loaders/LUTCubeLoader.js';
+  import { LUT3dlLoader } from 'three/addons/loaders/LUT3dlLoader.js'; 
+  import { makeItGrain } from "../js/grain.js";
+  import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
+  import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
+  //import { TrailRenderer } from 'three/addons/misc/TrailRenderer.js';
+  //import { ImageUtils } from '../js/three.js-master/src/extras/ImageUtils.js';
+
+// Arrays to hold cubes and corresponding Cannon.js bodies
+var cubes = [];
+var cubeBodies = [];
+var nameCubesTally = [];
+var winningArray = [];
+const cube_z = 0;
+var identityString = 0;
+
+var overAllSpin = 0.0015;
+//var overAllSpin = 0.0;
+
+//const geometry = new IcosahedronGeometry(0.4,0);
+
+
+//LUT
+//https://freshluts.com/
+/*
+      const params = {
+        enabled: true,
+        lut:  'NightFromDay.CUBE',
+        intensity: 1,
+        use2DLut: false,
+      };
+      let lutPass;
+      const lutMap = {
+        'NightFromDay.CUBE': null
+      }
+
+
+
+      Object.keys( lutMap ).forEach( name => {
+
+        if ( /\.CUBE$/i.test( name ) ) {
+
+          new LUTCubeLoader()
+            .load( '../js/three.js-master/examples/luts/' + name, function ( result ) {
+
+              lutMap[ name ] = result;
+
+            } );
+
+        } else {
+
+          new LUT3dlLoader()
+            .load( '../js/three.js-master/examples/luts/' + name, function ( result ) {
+
+              lutMap[ name ] = result;
+
+            } );
+
+        }
+
+      } );
+*/
+
+// Initialize Three.js
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
+var camHolder = new THREE.Object3D();
+
+// create an AudioListener and add it to the camera
+//const listener = new THREE.AudioListener();
+//camera.add( listener );
+
+
+
+/*// create the trail renderer object
+//const trail = new TrailRenderer( scene, false );
+//console.log('trail is: ' + JSON.stringify(trail));
+
+// specify points to create planar trail-head geometry
+const trailHeadGeometry = [];
+trailHeadGeometry.push( 
+  new THREE.Vector3( 1, 1.0, 1.0 ), 
+  new THREE.Vector3( 2.0, 2.0, 2.0 ), 
+  new THREE.Vector3( 4.0, 6.0, 4.0 ) 
+);
+
+// set how often a new trail node will be added and existing nodes will be updated
+trail.setAdvanceFrequency(30);
+
+// create material for the trail renderer
+const trailMaterial = TrailRenderer.createBaseMaterial(); 
+
+// specify length of trail
+const trailLength = 150;
+*/
+var cubes = [];
+var cubeBodies = [];
+var mylight = [];
+var holder = new THREE.Object3D();
+var myBaseholder = new THREE.Object3D();
+camHolder.add(camera);
+
+camera.position.x = 0;
+camera.position.z = 3;
+camera.position.y = -1.8;
+scene.add(camHolder);
+
+
+const light1 = new THREE.SpotLight(0xcc5555, 12);
+light1.position.set(0, 0, -5);
+light1.angle = Math.PI / 4;
+light1.penumbra = 25;
+light1.castShadow = true;
+light1.shadow.mapSize.width = 1024;
+light1.shadow.mapSize.height = 1024;
+light1.shadow.camera.near = 0.5;
+light1.shadow.camera.far = 50;
+light1.shadow.radius = 2;
+light1.visible = true;
+scene.add(light1);
+
+const light3 = new THREE.AmbientLight(0xccaaaa);
+scene.add(light3);
+
+const light = new THREE.DirectionalLight( 0xEEEEEE, 8);
+var d = 10;
+light.position.set( 0, d, d );
+//light.castShadow = true;
+light.shadowMapWidth = 2048;
+light.shadowMapHeight = 2048;
+light.shadowCameraLeft = -d;
+light.shadowCameraRight = d;
+light.shadowCameraTop = d;
+light.shadowCameraBottom = -d;
+light.shadowCameraFar = 3*d;
+light.shadowCameraNear = d;
+light.shadowDarkness = 200.9;
+light.shadow.radius = 2;
+scene.add( light );
+
+const light2 = new THREE.SpotLight(0xaa6666, 6);
+light2.position.set(-2.5, 5, 2);
+light2.angle = Math.PI / 4;
+light2.penumbra = 2.5;
+light2.castShadow = true;
+light2.shadow.mapSize.width = 1024;
+light2.shadow.mapSize.height = 1024;
+light2.shadow.camera.near = 0.5;
+light2.shadow.camera.far = 2000;
+light2.visible = true;
+camHolder.add(light2);
+
+
+const bgGeometry = new THREE.SphereGeometry( 100, 60, 40 );
+bgGeometry.scale( - 1, 1, 1 );
+
+const bgTexture = new THREE.TextureLoader().load( 'cyber/abc.png' );
+bgTexture.colorSpace = THREE.SRGBColorSpace;
+const bgMaterial = new THREE.MeshBasicMaterial( { map: bgTexture } );
+const bgMesh = new THREE.Mesh( bgGeometry, bgMaterial );
+bgMesh.rotation.z = bgMesh.rotation.x = -Math.PI;
+scene.add( bgMesh );
+
+
+var holder = new THREE.Object3D();
+scene.add(holder);
+
+var holderTarget = new THREE.Object3D();
+holderTarget.position.y = 6;
+camera.lookAt(holderTarget);
+
+var annie, boomer; // animators
+
+async function createElementMaterial(myTexture) {
+
+    var material = new THREE.MeshBasicMaterial(); // create a material
+
+    var loader = new THREE.TextureLoader().load(
+        // resource URL
+        myTexture,
+        // Function when resource is loaded
+        function ( texture ) {
+            // do something with the texture
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                texture.offset.x = 90/(2*Math.PI);
+                texture.repeat.set(1/4,1/4);
+                material.map = texture; // set the material's map when when the texture is loaded
+        },
+        // Function called when download progresses
+        function ( xhr ) {
+            //console.log( (xhr.loaded / xhr.total * 100) + '% loaded' );
+        },
+        // Function called when download errors
+        function ( xhr ) {
+            //console.log( 'An error happened' );
+        }
+    );
+    return material; // return the material
+}    
+
+function TextureAnimator(texture, tilesHoriz, tilesVert, numTiles, tileDispDuration) 
+{ 
+  // note: texture passed by reference, will be updated by the update function.
+    
+  this.tilesHorizontal = tilesHoriz;
+  this.tilesVertical = tilesVert;
+  // how many images does this spritesheet contain?
+  //  usually equals tilesHoriz * tilesVert, but not necessarily,
+  //  if there at blank tiles at the bottom of the spritesheet. 
+  this.numberOfTiles = numTiles;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping; 
+  //console.log('texture: ' + JSON.stringify(texture));
+
+  texture.offset.set( 0, 0 );
+  texture.repeat.set( 1 / this.tilesHorizontal, 1 / this.tilesVertical );
+
+  // how long should each image be displayed?
+  this.tileDisplayDuration = tileDispDuration;
+
+  // how long has the current image been displayed?
+  this.currentDisplayTime = 0;
+
+  // which image is currently being displayed?
+  this.currentTile = 0;
+    
+  this.updateMe = function( milliSec )
+  {
+    this.currentDisplayTime += milliSec;
+    while (this.currentDisplayTime > this.tileDisplayDuration)
+    {
+      this.currentDisplayTime -= this.tileDisplayDuration;
+      this.currentTile++;
+      if (this.currentTile == this.numberOfTiles)
+        this.currentTile = 0;
+      var currentColumn = this.currentTile % this.tilesHorizontal;
+      texture.offset.x = currentColumn / this.tilesHorizontal;
+      var currentRow = Math.floor( this.currentTile / this.tilesHorizontal );
+      texture.offset.y = currentRow / this.tilesVertical;
+      //console.log('er, hello ?');
+    }
+  };
+}
+
+
+//var explosionTexture = await createElementMaterial( './cyber/explosion.jpg' );
+
+var explosionTexture = new THREE.TextureLoader().load( "./cyber/smerk/SM2.png" );
+
+//console.log(explosionTexture);
+
+boomer = new TextureAnimator( explosionTexture, 21, 1, 21, 55 ); // texture, #horiz, #vert, #total, duration.
+
+
+var explosionMaterial = new THREE.MeshBasicMaterial( { 
+  map: explosionTexture,
+  side: THREE.FrontSide
+} );
+explosionMaterial.depthWrite =  false;
+explosionMaterial.blending = THREE.CustomBlending; 
+explosionMaterial.blendEquation = THREE.AddEquation; 
+explosionMaterial.blendSrc = THREE.SrcColorFactor;  
+explosionMaterial.blendDst = THREE.DstAlphaFactor; 
+
+
+
+
+
+/*** Physics ***/
+const world = new CANNON.World();
+world.broadphase = new CANNON.SAPBroadphase(world);
+world.allowSleep = true;
+world.gravity.set(0, -30, 0);
+var cubeIndex = 0;
+let jewel;
+var yRotation = 30;
+const cubesSleeping = [];
+//var myContinue = false;
+let blockIdentity;
+const rotY = 0;
+
+//makeItGrain( THREE, camera );
+
+
+const renderer = new THREE.WebGLRenderer({alpha: true, antialias: true });
+renderer.setPixelRatio( window.devicePixelRatio );
+renderer.setSize( window.innerWidth, window.innerHeight );
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+//renderer.useLegacyLights = false;
+document.body.appendChild( renderer.domElement );
+
+/*
+const composer = new EffectComposer( renderer );
+composer.setPixelRatio( window.devicePixelRatio );
+composer.setSize( window.innerWidth, window.innerHeight );
+composer.addPass( new RenderPass( scene, camera ) );
+composer.addPass( new OutputPass() );
+
+lutPass = new LUTPass();
+composer.addPass( lutPass );
+*/
+
+
+// Load the Orbitcontroller
+var controls = new OrbitControls( camera, renderer.domElement ); 
+const pmremGenerator = new THREE.PMREMGenerator( renderer );
+const hdriLoader = new RGBELoader()
+hdriLoader.load( 'cyber/abc-small.hdr', function ( texture ) {
+  const envMap = pmremGenerator.fromEquirectangular( texture ).texture;
+  texture.dispose(); 
+  scene.environment = envMap
+});
+
+// base apparatus
+const modelBaseloader = new GLTFLoader();
+const myBaseloader = new THREE.TextureLoader();
+const myBase =  modelBaseloader.load('models/base2.gltf', (gltf) => {
+  
+  const theBasemodel = gltf.scene;
+  theBasemodel.visible = true;
+  theBasemodel.scale.set(0.028, 0.042, 0.032);
+  theBasemodel.position.y = -3.15;
+  theBasemodel.position.x = -0.85;
+  myBaseholder.add(theBasemodel);
+
+  const theBasemodelMover = gltf.scene.clone();
+
+
+  theBasemodelMover.visible = true;
+  theBasemodelMover.scale.set(0.028, -0.042, 0.032);
+  theBasemodelMover.position.y = 0.65;
+  theBasemodelMover.position.x = -0.85;
+  myBaseholder.add(theBasemodelMover);    
+
+  scene.add(myBaseholder);
+
+
+
+
+
+
+
+
+  const Basematerial = new THREE.MeshStandardMaterial({
+    color: '#FFFFFF',
+    roughness: 0,
+    metalness: 1,
+    lightMapIntensity: 5.0,
+    transparent: true
+  });
+
+  theBasemodel.traverse((o) => {
+    if (o.isMesh) o.material = Basematerial;
+  });
+   theBasemodelMover.traverse((o) => {
+    if (o.isMesh) o.material = Basematerial;
+  });
+});
+
+
+
+// lensflares
+const textureLoader = new THREE.TextureLoader();
+const textureFlare0 = textureLoader.load( 'textures/lensflare/lensflare0.png' );
+const textureFlare3 = textureLoader.load( 'textures/lensflare/lensflare3.png' );
+const textureFlare4 = textureLoader.load( 'textures/lensflare/lensflare4.png' );
+const textureFlare5 = textureLoader.load( 'textures/lensflare/lensflare5.png' ); 
+const textureFlare6 = textureLoader.load( 'textures/lensflare/lensflare6.png' );         
+
+var lightIndex = 0;
+
+// x = r(sin N) z = r(cos N)
+// position on the background sphere is 
+// x = 100 * Math.sin(angleOne) 
+// z = 100 * Math.cos(angleOne)
+
+const angleOne = (Math.PI * 1) + 0.15;
+const angleTwo = (Math.PI * 1.91); //red 
+const angleThree = (Math.PI * 0.5);
+const db = 98.0;
+
+   addLight( 0.1, 1, 0.5, db * Math.sin(angleOne), -2, db * Math.cos(angleOne) );
+ addLight(0.4, 1, 0.5, db * Math.sin(angleThree), -10, db * Math.cos(angleThree) );
+  addLight(0.0, 1, 0.9, db * Math.sin(angleTwo), -2.5, db * Math.cos(angleTwo) );       
+
+
+function addLight( h, s, l, x, y, z ) {
+
+  
+  mylight[lightIndex] = new THREE.PointLight( 0xffffff, 1.5, 0, 1 );
+  mylight[lightIndex].castShadow = true;
+  mylight[lightIndex].color.setHSL( h, s, l );
+  
+  var ourColor = mylight[lightIndex].color;
+  
+  const redFlare = new THREE.Color("rgb(240,0,0)");
+
+  //console.log(ourColor);
+  
+  mylight[lightIndex].position.set( x, y, z );
+  scene.add(mylight[lightIndex]);
+
+  const lensflare = new Lensflare();
+
+  const El_1 = new LensflareElement( textureFlare0, 500, 0, ourColor );
+  const El_4 = new LensflareElement( textureFlare3, 40, 0.3, redFlare );
+  const El_5 = new LensflareElement( textureFlare3, 50, 0.37, redFlare ); 
+  const El_3 = new LensflareElement( textureFlare3, 70, 0.55);         
+  const El_2 = new LensflareElement( textureFlare6, 50, 0.6, ourColor);
+  const El_22 = new LensflareElement( textureFlare6, 50, 0.65, ourColor);
+  const El_23 = new LensflareElement( textureFlare6, 20, 0.78, ourColor);
+  const El_7 = new LensflareElement( textureFlare4, 160, 0.75, redFlare );      
+  const El_6 = new LensflareElement( textureFlare3, 180, 0.9);
+  const El_8 = new LensflareElement( textureFlare3, 90, 1 );
+  const El_9 = new LensflareElement( textureFlare5, 1240, 2, redFlare );
+
+  lensflare.addElement(El_1);
+  lensflare.addElement(El_2);
+  lensflare.addElement(El_22);
+  lensflare.addElement(El_23);            
+  lensflare.addElement(El_3);
+  lensflare.addElement(El_4);
+  lensflare.addElement(El_5);
+  lensflare.addElement(El_6);
+  lensflare.addElement(El_7);
+  lensflare.addElement(El_8);
+  lensflare.addElement(El_9);  
+
+  mylight[lightIndex].add( lensflare );
+  lightIndex++;
+}
+
+
+
+
+async function addCube_(x,y,z, blockIdentity, givenIndex){
+  
+  //var cube = [];
+
+  if (blockIdentity <= 15 ){
+  
+    var myIC = await createImageCube(x, y, z, blockIdentity, givenIndex);
+ 
+  } else if (blockIdentity >= 16 && blockIdentity < 20){ //16 17 18 19
+  
+    var myCM = await createCardModel(x, y, z, blockIdentity, givenIndex);
+   
+  } else {
+
+    var myCX = await  createComplexModel(x, y, z, blockIdentity, givenIndex);
+  
+  }
+
+}
+
+var flown = [];
+
+async function createImageCube(x, y, z, blockIdentity, givenIndex){
+
+let geometry;
+  ///if (Math.random() * 1 >= 0.9){
+    //geometry = new IcosahedronGeometry(0.4, 0);
+  //} else {
+    
+  //}
+  var borg = 0;
+  geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+  if (blockIdentity != 0){
+    borg = 1;
+  geometry = new RoundedBoxGeometry(0.9,0.9,0.9, 3, 0.1);
+  } 
+
+  //geometry = new THREE.BoxGeometry(0.95, 0.95, 0.95);
+  const blockTexture = blockIdentity+ '.png';
+  const myloader = new THREE.TextureLoader();
+  const texture = myloader.load ('cyber/'+ blockTexture, ( texture) => {
+    
+    
+    const material = new THREE.MeshStandardMaterial();
+    material.metalness = 0.985;
+    material.roughness = 0.2;
+    material.transparent = true;
+    material.map = texture;
+    material.side = THREE.DoubleSide;
+    material.lightMapIntensity = 10;  
+    texture.wrapS = texture.wrapT = THREE.MirroredRepeatWrapping;
+    texture.center.set(0.5,0.5);
+
+
+    const cube = new THREE.Mesh(geometry, material);
+    if (borg == 1){
+
+    cube.name = "myname_" + givenIndex;
+
+    cube.castShadow = true;
+    //cube.receiveShadow = true;
+
+    holder.add(cube);
+    cubes[givenIndex] = cube;
+
+    //cube.lookAt( camera.position );
+
+    //console.log('Image cube created, givenIndex: ' + givenIndex);
+    createCubebody(x, y, z, blockIdentity, givenIndex);
+
+
+    } else {
+      material.metalness = 0.1;
+      material.roughness = 0.6;
+      const sfloader = new GLTFLoader();
+      cube.name = "myborg_" + givenIndex;
+      sfloader.load('./models/starfighter.gltf', function (gltf){
+          flown[givenIndex] = '0';
+          const sf = gltf.scene;
+          sf.rotation.y = Math.PI*0.5;
+          sf.scale.set(0.003, 0.006, 0.003);
+          sf.position.y = 0;
+          sf.visible = false;
+          const sfMaterial = new THREE.MeshStandardMaterial({
+          color: "#555555",
+          roughness: 0.0,
+          metalness: 1,
+          });
+          var MYmaterial = sfMaterial;        
+          sf.traverse((o) => {
+          if (o.isMesh) o.material = MYmaterial;
+          });    
+          cube.castShadow = true;
+     
+          cube.add(sf);
+          holder.add(cube);
+          cubes[givenIndex] = cube;
+
+          //cube.lookAt( camera.position );
+
+          //console.log('Image cube created, givenIndex: ' + givenIndex);
+          createCubebody(x, y, z, blockIdentity, givenIndex);   
+
+
+      });
+
+    } 
+
+
+  });
+
+}
+
+
+async function createCardModel(x, y, z, blockIdentity, givenIndex){
+    
+    const cube = new THREE.Object3D();
+    const modelloader = new GLTFLoader();
+    const myloader = new THREE.TextureLoader();
+          cube.scale.set(0.1, 0.1, 0.05);
+          cube.name = 'mynamemodel_' + givenIndex;
+    
+    const myModelStore = ['clubb', 'diamond', 'spade', 'heart'];
+    const myModelColor = ['#222222', '#ee0000', '#222222', '#ee0000'];
+
+    const modelSelector = blockIdentity - 16;
+
+    //console.log('modelSelector = ' + modelSelector);
+
+    const myModel = './models/' + myModelStore[modelSelector] + '.gltf';
+    const myColor = myModelColor[modelSelector];
+
+    const loadedData =  modelloader.load(myModel, (gltf) => {
+ 
+      const cardBacker = new THREE.Mesh( new RoundedBoxGeometry( 6 , 8 , 2 , 15 , 1 ) );
+      const backerMaterial = new THREE.MeshStandardMaterial({
+            color: "#FFFFFF",
+            transparent: true,
+            opacity: 0.4,
+            roughness: 0.2,
+            metalness: 0.8,
+      });
+            cardBacker.material = backerMaterial;
+            cardBacker.position.y = 1;
+            cardBacker.scale.z = 0.05;
+
+      const themodel = gltf.scene;
+            themodel.visible = true;
+            themodel.castShadow = true;
+      const material = new THREE.MeshStandardMaterial({
+            color:  myColor,
+            roughness: 0,
+            metalness: 1,
+            lightMapIntensity: 15.0,
+            transparent: true
+      });
+      var MYmaterial = material;        
+          themodel.traverse((o) => {
+            if (o.isMesh) o.material = MYmaterial;
+          });
+          themodel.position.y = -1;
+
+          themodel.add(cardBacker);
+          cube.add(themodel); 
+
+
+
+
+          holder.add(cube);
+          cubes[givenIndex] = cube;
+          
+         //console.log('Card model created, givenIndex: ' + givenIndex); 
+         createCubebody(x, y, z, blockIdentity, givenIndex);
+
+
+
+    });
+
+}
+
+
+
+var mixerIndex = 0;
+var mmeshIndex = 0;
+var mixer = [];
+var mytween = [];
+var complexLoadeds = 0;
+var complexToLoad = 0;
+
+async function createComplexModel(x, y, z, blockIdentity, givenIndex){
+
+    complexToLoad += 1;
+    
+    const cube = new THREE.Object3D();
+    const loader = new GLTFLoader();
+    const cone_loader = new GLTFLoader();
+    const cubeRig = new THREE.Object3D();
+   
+    loader.load('./models/dancin_stormtrooper_2/scene.gltf', function (gltf){
+
+      const trooper = gltf.scene;
+
+        /* initialize the trail
+        trail.initialize( trailMaterial, trailLength, false, 0, trailHeadGeometry, trooper );
+        //trail.rotation.z = Math.PI;
+        // activate the trail
+        trail.activate();*/
+
+      cube.name = 'complex_' + givenIndex;
+      trooper.position.y = -1.5;
+      trooper.visible = true;
+      
+      cube.add(trooper);
+
+    loader.load('./models/dancin_stormtrooper_2/scene.gltf', function (gltft){
+
+      const trooper2 = gltft.scene;
+      trooper2.visible = true;
+      trooper2.position.x = 0;      
+      trooper2.position.y = -1.5;
+      trooper2.position.z = 0;
+      
+      trooper2.name = 'trooper_'+mixerIndex;
+
+      loader.load('./models/dancin_stormtrooper_2/scene.gltf', function (gltftt){
+
+        const trooper3 = gltftt.scene;
+        trooper3.visible = true;
+        trooper3.position.x = 0;      
+        trooper3.position.y = -1.5;
+        trooper3.position.z = 0;
+        
+        trooper3.name = 'trooper_'+mixerIndex;
+
+        //const animations = cube.animations;
+        //if (animations){
+        //  mymixer[mixerIndex] = new THREE.AnimationMixer( cube );
+        //  mymixer[mixerIndex].clipAction( animations[ 0 ] ).play();
+        //}
+
+
+
+      const material2 = new THREE.MeshStandardMaterial({
+            color:  0xaaaaaa,
+            roughness: 0,
+            metalness: 1,
+            lightMapIntensity: 20,
+            transparent: true,
+            opacity: 0.9
+      });
+
+
+
+      const material3 = new THREE.MeshStandardMaterial({
+            color:  0xaaaaaa,
+            roughness: 0,
+            metalness: 1,
+            lightMapIntensity: 0,
+            transparent: true,
+            opacity: 0.4
+      });
+
+
+      var MYmaterial2 = material2;        
+          trooper.traverse((o) => {
+            if (o.isMesh) o.material = MYmaterial2;
+          });
+      var MYmaterial3 = material3;        
+          trooper2.traverse((o) => {
+            if (o.isMesh) o.material = MYmaterial3;
+          });
+      var MYmaterial3 = material3;        
+          trooper3.traverse((o) => {
+            if (o.isMesh) o.material = MYmaterial3;
+          });
+
+
+        
+        mixer[mixerIndex] = new THREE.AnimationMixer(trooper);
+        var action = mixer[mixerIndex].clipAction( gltf.animations[ 0 ] );
+        action.play();
+        mixerIndex++;
+
+        mixer[mixerIndex] = new THREE.AnimationMixer(trooper2);
+        var action2 = mixer[mixerIndex].clipAction( gltft.animations[ 0 ] );
+        action2.time = -0.02;
+        action2.play();
+        mixerIndex++;
+
+        mixer[mixerIndex] = new THREE.AnimationMixer(trooper3);
+        var action3 = mixer[mixerIndex].clipAction( gltftt.animations[ 0 ] );
+        action3.time = -0.04;
+        action3.play();
+        mixerIndex++;
+
+
+        cube.scale.set(0.23, 0.23, 0.23);
+        cube.add(trooper);
+        cube.add(trooper2);
+        cube.add(trooper3);
+        //console.log('trooper 2 is: ' + JSON.stringify(trooper2) + 'xyz: ' + trooper2.position.x+' / '+trooper2.position.y+' / '+trooper2.position.z); 
+        console.log(trooper + ' / ' + trooper2);
+        
+        
+
+        
+
+         loader.load('./models/stage.gltf', function (gltf){
+            const wheel = gltf.scene;
+            wheel.scale.set(0.09, 0.09, 0.09);
+            wheel.position.y = -1.6;
+
+            //wheel.rotation.y = -1.5;
+            const wheelMaterial = new THREE.MeshStandardMaterial({
+                  color: "#DDDDDD",
+                  roughness: 0.0,
+                  metalness: 1,
+                  //receiveShadow: true
+                  });
+            var MYmaterial = wheelMaterial;        
+                wheel.traverse((o) => {
+                  if (o.isMesh) o.material = MYmaterial;
+                });
+       
+
+              //const lightMe = new THREE.AmbientLight(0xccaaaa);
+             const lightMe = new THREE.PointLight(0xFFFFFF, 14, 20);
+              lightMe.position.set(1, 2, 1);
+              //lightMe.angle = Math.PI / 0;
+              lightMe.castShadow = false;
+     
+
+
+
+              const coneRig = new THREE.Object3D();
+              coneRig.name = 'conerig_';
+              
+              
+              cube.add(wheel);
+              wheel.add(coneRig);
+              coneRig.add(lightMe);
+
+              coneRig.position.x = 0.5;
+              coneRig.position.z = 0.5;
+
+              
+    
+              const mgeometry = new THREE.BoxGeometry( 3, 3, 0 );
+
+              //const mplane = new THREE.PlaneGeometry(10,0,0);
+              const mmesh = new THREE.Mesh( mgeometry, explosionMaterial );
+              mmesh.name = 'mmesh_'+mmeshIndex;
+              mmesh.position.x = 0;
+              mmesh.position.y = 0;
+              mmesh.position.z = -0.5;
+              cube.add( mmesh );
+              console.log( mmesh );
+              mmeshIndex++;
+
+
+              complexLoadeds += 1;
+      
+          });
+
+        holder.add( cube );
+        cubes[givenIndex] = cube;
+        
+        //console.log('Complex model created, givenIndex: ' + givenIndex);
+        createCubebody(x, y, z, blockIdentity, givenIndex);
+        });
+      });
+      
+    });
+
+
+
+}
+
+var sound = [];
+
+function createCubebody(x, y, z, blockIdentity, givenIndex){
+
+// create a global audio source
+//sound[givenIndex] = new THREE.Audio( listener );
+
+
+/*const mediaElement = new Audio( 'cyber/tick.ogg' );
+
+sound[givenIndex].setLoop( false );
+sound[givenIndex].setVolume( 0.5 );
+sound[givenIndex].offset = 0.25;
+sound[givenIndex].setMediaElementSource( mediaElement );
+*/
+
+
+
+
+          /////// CREATE THE CANNON PHYSICS SHAPE
+          const shape = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5)); // Box shape
+          const cubeBody = new CANNON.Body({
+            mass: 20, // Adjust mass as needed
+            position: new CANNON.Vec3(x, y, z), // Set the initial position
+            shape: shape,
+          });
+          var axis = new CANNON.Vec3(0,1,0);
+          var angle = rotY;
+
+
+          cubeBody.allowSleep = true;
+          cubeBody.quaternion.setFromAxisAngle(axis, angle);
+          cubeBody.position.z = cube_z;
+          cubeBody.linearFactor = new CANNON.Vec3(0,1,1),
+          cubeBody.sleepSpeedLimit = 0.4;
+          cubeBody.linearDamping = 0.999;
+          cubeBody.angularDamping = 1;
+
+          // Default material
+          const defaultMaterial = new CANNON.Material('default');
+          const defaultContactMaterial = new CANNON.ContactMaterial(defaultMaterial, defaultMaterial, {
+              friction: 1,
+              restitution: 0,
+          });
+          world.defaultContactMaterial = defaultContactMaterial;
+          world.addBody(cubeBody);
+        
+
+          // straighten up the physics cubes
+          cubeBody.addEventListener('sleep', (event) => {
+            cubesSleeping[givenIndex] = true;
+            holder.children[givenIndex].rotation.z = 0;
+            holder.children[givenIndex].x = Math.floor(holder.children[givenIndex].x);
+          });
+        ///////end CREATE THE CANNON PHYSICS SHAPE
+
+        /// add cubeBodies to their arrays////
+        cubeBodies[givenIndex] = cubeBody;
+
+        //var myCube = cubes[givenIndex];
+        //console.log('from within createCubebody, the cube in cubes at index: ' + givenIndex + 'is: ' + myCube.name);
+        //myCube.position.copy(cubeBody.position);
+
+        //console.log('cubeBodies is: ' + cubeBodies[givenIndex]);
+
+}
+
+
+
+
+
+
+
+
+//set up cubes and models
+function initPlayPieces(){
+
+  const numRows = 4;
+  const numColumns = 5;
+  const spacing = 1.1;
+  var incre = 1.6;
+  var yFactor = 0;
+  holder.rotation.y = 0;
+  var givenIndex = 0;
+
+  /*
+
+  CREATE COLUMNS
+
+
+  */
+
+  // Create 6 columns of 5 cubes/objects each
+
+
+  for (let j = 0; j < numRows; j++) {    
+    for (let i = 0; i < numColumns; i++) {
+    
+    // Calculate cube position
+    const x = Math.floor((i - (numColumns - 1) / 1.6) * spacing);
+    //const y = (((numRows / 2 - j) * 5) - incre) + 18;
+    const y = (incre*5 + 0.25);
+
+    var yFactor = (i - (numColumns/2));
+    const rotY = (yFactor * 1)+0.5;
+
+
+    //randomize identity
+    //var t = Math.random()*4;
+    //var identity = Math.floor(Math.pow(t,2));
+
+    var identity = Math.floor(Math.random()*22); // 0-21
+
+    addCube_(x, y, cube_z, identity, givenIndex);
+
+
+    var incre = incre + 0.2;
+    cubesSleeping.push(false);
+
+    nameCubesTally.push(identity);
+    givenIndex++;
+
+
+    }
+          
+  }
+
+
+  const groundGeometry = new THREE.PlaneGeometry(6, 2); 
+  groundGeometry.rotateX( - Math.PI / 2); // Rotate the plane to be horizontal
+
+  //const groundMaterialShadow = new THREE.ShadowMaterial();
+  //groundMaterialShadow.transparent = true
+  //groundMaterialShadow.opacity = 0.5;
+
+  const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide });
+  groundMaterial.transparent = true;
+  groundMaterial.opacity = 0;
+  groundMaterial.metalness = 0.6;
+  groundMaterial.roughness = 0.2;
+
+  const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+  groundMesh.position.y = -3.15;
+  groundMesh.position.x = -1;
+  //groundMesh.receiveShadow = true;
+  groundMesh.name = "theGroundmesh";      
+  holder.add(groundMesh);
+
+
+  // Create a ground plane in Cannon.js
+  const groundShape = new CANNON.Plane();
+  const groundBody = new CANNON.Body({ mass: 0 }); // A static object (mass: 0)
+  groundBody.addShape(groundShape);
+  groundBody.position.y = groundMesh.position.y + 0.05;
+  groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2); // Rotate the plane to match Three.js
+  world.addBody(groundBody);
+
+
+  //console.log('The TALLY is: '+ nameCubesTally);
+
+  /*
+  The TALLY is:
+
+  0,13,
+  1,2,
+  2,5,
+  3,12,
+  4,15,
+  5,1,
+  6,6,
+  7,2,
+  8,6,
+  9,4,
+  10,11,
+  11,10,
+  12,1,
+  13,20,
+  14,15,
+  15,9,
+  16,0,
+  17,20,
+  18,12,
+  19,21
+*/
+  nameCubesTally.forEach((myid) => {
+   //console.log('givenIndex: ' + gi);
+   //console.log('blockidentity' + myid);
+  });
+};
+
+function showWinners(winningArray){
+
+  winningArray.forEach((blockIndex) => {
+  // instantiate a loader
+  const loader = new THREE.TextureLoader();
+    var myBlock = cubes[blockIndex];
+    var myMaterial = myBlock.material;
+    var myTextureImage = nameCubesTally[blockIndex][1];
+    var newTexture = loader.load ('holiday/winblock.png', ( wintexture ) => {
+      myMaterial.map = wintexture;
+      myMaterial.map.needsUpdate = true; 
+      myMaterial.needsUpdate = true;
+      //console.log('new texture is: ' + newTexture);
+    });
+    
+
+    //show alternative, highlighted texture on mesh.
+    //const texture = loader.load ('holiday/'+myTextureImage+'.jpg');
+
+
+  });
+};
+
+function checkWin(){
+
+  var array = nameCubesTally;
+
+  const arraySize = 30;
+  const groupSize = 6;
+  var sameCount = 0;
+
+  // Function to check if all elements in an array have the same OTHERINTEGER
+  function areAllSame(arr) {
+    return arr.every(item => item[1] === arr[0][1]);
+  }
+
+  // Analyze the array
+  for (let i = 0; i < arraySize; i += groupSize) {
+
+    const group = array.slice(i, i + groupSize);
+    const firstThree = group.slice(0, 3);
+
+    // Check if the first three elements have the same OTHERINTEGER
+    if (areAllSame(firstThree)) {
+      
+      const firstValue = firstThree[0][1];
+      const occurrences = group.filter(item => item[1] === firstValue).length;
+
+      console.log('The winning picture is: ' + firstValue);
+      console.log('The number that is a winner is: ' + occurrences);
+
+      if (occurrences >= 3){
+        console.log('3 is a winna');
+        sameCount = 3;
+        const theFour = group.slice(0,4);
+
+        if (areAllSame(theFour)){
+          console.log('4 in a row!');
+          sameCount = 4;
+          //see if five are the same
+          const theFive = group.slice(0,5);
+          if (areAllSame(theFive)){
+            console.log('5 in a row!! ***amazing!***');
+            sameCount = 5;
+            //see if six(whole group)are the same
+            if (areAllSame(group)){
+              console.log('6 IN A ROW!!!!!! $$$$$$ WINNER WINNER FAKE CHICKEN DINNER !!!!! $$$$$$');
+              sameCount = 6;
+              //WHOLE LINE !!!!
+            }
+          }
+        }
+      }
+
+      //console.log(`Elements ${i + 0}, ${i + 1} & ${i + 2} have the same Holiday Photo.`);
+      //console.log(`In the full group of 6, there are ${sameCount} reels with the same matching photo !!`);
+      //tell me the indices of the matching blocks...
+      for (let q = 0; q < sameCount; q++ ){
+        winningArray.push(i + q);
+        showWinners(winningArray);
+        //console.log(`Block: ${i + q} is a matching block`);
+      }
+    } else {
+
+
+      //console.log(`Elements ${i + 1} to ${i + 3} do not have the same OTHERINTEGER.`);
+    }
+
+
+    
+  }
+};
+
+function checkSleeping(){
+  if (cubesSleeping.every(value => value === true)){
+    allAsleep = true;
+    //checkWin();
+  };
+};
+
+
+
+
+
+
+
+
+
+
+
+
+var newLight = 1.5;
+let clock;
+clock = new THREE.Clock();  
+
+const ligO = 1;
+let myActualCone;
+
+/*var randX = Math.floor(Math.random()*3);
+var randY = Math.floor(Math.random()*3);
+var randZ = Math.floor(Math.random()*3);
+*/
+// Animation loop
+const animate = () => {
+
+
+  requestAnimationFrame(animate);
+  TWEEN.update();
+
+
+
+  
+  cubes.forEach((cube, index) => {
+
+
+
+    const cubeBody = cubeBodies[index]; // Corresponding Cannon.js body
+    cubeBody.linearFactor = new CANNON.Vec3(0, 1, 0);
+    cubeBody.position.z = 0;
+
+    cubeBody.addEventListener('sleep', (e) => {
+        //sound[index].play();
+    });
+
+    
+
+    //console.log('cube name: ' + cube.name);
+    if (cube.name.includes('mynamemodel_')){
+      cube.rotation.y += 0.03;
+    } else if (cube.name.includes('complex')){
+      cube.children[0].rotation.y += 0.03;
+      cube.children[1].rotation.y += 0.03;
+      cube.children[2].rotation.y += 0.03;
+      //cube.children[3].rotation.y -= 0.03;
+      //cube.rotation.y += 0.03;
+      //cube.rotation.z = 0;
+      if (complexToLoad == complexLoadeds){
+        //console.log('complexToLoad = ' + complexToLoad + ' / complexLoadeds = ' + complexLoadeds);
+      //.rotation.y -= 0.2;
+      //console.log(cube);
+      cube.children[3].children[2].children[0].angle = (Math.floor(Math.random()*6)) * Math.PI/6;
+      //cube.children[1].children[2].children[0].angle = (Math.floor(Math.random()*6)) * Math.PI/6;
+      //cube.children[1].children[2].children[0].position.y = Math.random()*1;
+      //var w = cube.children[4];
+      //w.rotation.y -= 0.03;
+   
+      }
+
+    } else if (cube.name.includes('myborg_')){
+
+      //BORG-block !!!
+      //var mOs = cube.material.map.offset.y;
+      //console.log(mOs);
+      //cube.material.map.offset.set(0,mOs+0.01);
+
+      const flyMe = cube.children[0];
+
+      var myDelay = Math.random()*12600;
+      //var myDelay = 6000;
+
+      if (flown[index] != 1){
+
+      var myBaseTween = new TWEEN.Tween(flyMe.position)
+      .easing(TWEEN.Easing.Quadratic.In)
+      .to({z: 30.15}, 13000)
+      .delay(myDelay)
+      .repeat(1)
+      .onStart(() => {
+        flown[index] = 1;
+        flyMe.visible = true;
+      })
+      .onComplete(() => {
+          setTimeout(function(){
+            cube.remove(flyMe)  
+          }, 150)
+        })
+      .start();
+      }
+
+
+
+    }
+
+     cube.quaternion.set(
+        cubeBody.quaternion.x,
+        cubeBody.quaternion.y,
+        cubeBody.quaternion.z,
+        cubeBody.quaternion.w
+      );     
+    
+
+
+
+    cube.position.copy(cubeBody.position);
+    cubeBody.velocity.x = 0;
+    cubeBody.velocity.z = 0;
+  });
+
+  /*mylight[0].intensity = newLight;
+  mylight[1].intensity = newLight;
+  mylight[2].intensity = newLight;
+
+  //mylight[0].children[0].material.opacity = Math.random();
+
+  //console.log(mylight[0].children[0].children[0]);
+
+  if (newLight == 1.5){newLight = 0.5;} else {newLight = 1.5;}
+  */
+
+
+  holder.rotation.y = camHolder.rotation.y * 15;
+  if (holder.rotation.y >= Math.PI*2){
+    holder.rotation.y = 0;
+  }
+
+  camHolder.rotation.y -= overAllSpin;
+  if (camHolder.rotation.y >= Math.PI*2){
+    camHolder.rotation.y = 0;
+  }
+
+  myBaseholder.rotation.y = holder.rotation.y;
+
+
+
+  //camera.position.y = (Math.cos(holder.rotation.y) * 1) - 1.5;
+  camera.rotation.x = Math.sin(holder.rotation.y) / 8;
+
+  const delta = clock.getDelta();
+
+  //console.log(mymixer);
+
+  mixer.forEach((mixer, mixerIndex) => {
+    mixer.update(delta * 1);
+  });
+    boomer.updateMe(delta * 700);
+
+  
+  world.step(1 / 22); 
+  
+  //trail.update();
+
+  if (!allAsleep){
+    checkSleeping();
+  }
+
+
+
+  /*
+  lutPass.enabled = params.enabled && Boolean( lutMap[ params.lut ] );
+  lutPass.intensity = params.intensity;
+  if ( lutMap[ params.lut ] ) {
+    const lut = lutMap[ params.lut ];
+    lutPass.lut = params.use2DLut ? lut.texture : lut.texture3D;
+  }
+  */
+  //composer.render();
+
+
+  renderer.render(scene, camera);
+};
+
+
+function clearAll(){
+
+  var allAsleep = false;
+
+  cubes.length = 0;
+  cubeBodies.length = 0;
+  nameCubesTally.length = 0;
+  winningArray.length = 0;
+  cubesSleeping.length = 0;
+  identityString = 0;
+  setTimeout(initPlayPieces, 500);
+};
+
+async function iN(){
+    await initPlayPieces();
+
+    animate();
+  }
+
+document.body.onload = function(){
+    iN();
+    //console.log(trail);
+
+}
+
+function getRandomNumberInRange(n) {
+  // Generate a random number between -n and n
+  return Math.random() * (2 * n + 1) - n;
+}
+
+//const moveMe = myBaseholder.children[1];
+
+
+var randX = Math.floor(getRandomNumberInRange(3));
+var randZ =(Math.random()*0.5)+2.1;  
+
+document.getElementById('playbutton').addEventListener('click', function() {
+
+
+//console.log('camera x y z: '+camera.position.x + ' / ' + camera.position.y + ' / ' + camera.position.z);
+//camera x y z: 1.1047213863555778 / -1.2434398089393601 / 2.4577971973284094
+//camera x y z: -3.838690010752874 / -1.0056694414327194 / 2.703162231398446
+
+/*var moneyShot = new TWEEN.Tween(camera.position)
+  .to({x: randX, y: -1.1, z: randZ}, 300)
+  .repeat(1)
+  .onComplete(() => {
+    camera.lookAt(holderTarget);
+    var randX = Math.floor(getRandomNumberInRange(3));
+    var randZ =(Math.random()*0.5)+2.1;    
+      })
+  .start(); 
+  */
+
+const moveMe = myBaseholder.children[1];
+
+var myBaseTween = new TWEEN.Tween(moveMe.position)
+  .to({y: -3.15}, 1000)
+  .repeat(1)
+  .yoyo(true)
+  .start(); 
+
+  for (var ii = holder.children.length - 1; ii >= 0; ii--) {
+    
+    var myObj = holder.children[ii];
+    var mygo = (holder.children.length - ii) * 50; 
+    //console.log('mygo: ' + mygo);
+    var myObjID = myObj.id;
+    var theName = holder.children[ii]['name'];
+
+    setTimeout(function(theActualName){
+      var myRemovee = holder.getObjectByName(theActualName);
+      var myX = getRandomNumberInRange(2);
+      var myY = -2;
+      var myZ = getRandomNumberInRange(2);
+
+      var myRot = (Math.PI*2);
+
+      /*var mytween = new TWEEN.Tween(myRemovee.position)
+      .easing(TWEEN.Easing.Quadratic.In)
+      .to({x: myX, y: myY, z: myZ}, 200)
+
+      .start();*/
+      var myx = myRemovee.scale.x;
+      var myz = myRemovee.scale.z;
+      
+      var mytweenTwo = new TWEEN.Tween(myRemovee.scale)
+      .easing(TWEEN.Easing.Quadratic.In)
+      .to({x: myx, y: 0, z: myz}, 200)
+      .onComplete(() => {
+        setTimeout(function(){
+          holder.remove(myRemovee)  
+        }, 150)
+      })
+      .start();
+
+      var mytweenThree = new TWEEN.Tween(myRemovee.rotation)
+      .easing(TWEEN.Easing.Quadratic.Out)
+      .to({x: 0, y: myRot, z: 0}, 200)
+      .start();
+    
+    }, mygo, theName);
+  }
+
+  for (var jj = world.bodies.length - 1; jj >= 0; jj--) {
+    var jjGo = jj * 20;
+    world.removeBody(world.bodies[jj]);
+  }
+  setTimeout(function(){
+    clearAll(); 
+  }, 500); 
+
+}); 
+
+var allAsleep = false; 
+
+
+</script>    
+<!--script src="three.r134.min.js"></script
+<script src="https://cdn.jsdelivr.net/npm/vanta@0.5.24/dist/vanta.fog.min.js"></script>
+<script>
+VANTA.FOG({
+  el: "#my",
+  mouseControls: true,
+  touchControls: true,
+  gyroControls: false,
+  minHeight: 200.00,
+  minWidth: 200.00,
+  highlightColor: 0xffffff,
+  midtoneColor: 0xb3b3b3,
+  lowlightColor: 0x696969,
+  baseColor: 0x282828,
+  blurFactor: 0.58,
+  speed: 4.10,
+  zoom: 0.40
+})
+</script>-->
+
+<style>
+#playbutton{
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  cursor: pointer;
+  width: 94px;
+  height: 72px;
+}
+</style>
+</head>
+<body style="
+margin: 0;
+
+    background-color: #000;
+    background-position: center 51%;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    background-size: contain;
+    background-repeat: no-repeat;">
+    <img src="cyber/play.png" id="playbutton" />  
+    <div id="my"></div>
+    </body>
+</html>
