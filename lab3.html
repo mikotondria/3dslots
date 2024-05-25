@@ -23,7 +23,8 @@
     {
       "imports": {
         "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+        "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/",
+        "three/src/": "https://unpkg.com/three@0.164.1/src/"
       }
     }
   </script>
@@ -47,7 +48,7 @@
   import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
   import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
   import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-  import { IcosahedronGeometry } from '../src/geometries/IcosahedronGeometry.js';
+  import { IcosahedronGeometry } from 'three/src/geometries/IcosahedronGeometry.js';
   import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
   import { Lut } from 'three/addons/math/Lut.js';
   import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
@@ -58,7 +59,7 @@
   import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
   import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
   //import { TrailRenderer } from 'three/addons/misc/TrailRenderer.js';
-  //import { ImageUtils } from '../js/three.js-master/src/extras/ImageUtils.js';
+  import { ImageUtils } from 'three/src/extras/ImageUtils.js';
 
 // Arrays to hold cubes and corresponding Cannon.js bodies
 var cubes = [];
