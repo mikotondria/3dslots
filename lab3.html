@@ -943,6 +943,23 @@ sound[givenIndex].setMediaElementSource( mediaElement );
 //set up cubes and models
 function initPlayPieces(){
 
+  THREE.DefaultLoadingManager.onStart = function ( url, itemsLoaded, itemsTotal ) {
+  document.getElementById('loadtext').innerHTML = 'Started loading file: Loaded ' + itemsLoaded + ' of ' + itemsTotal + ' files.' ;
+
+};
+
+THREE.DefaultLoadingManager.onLoad = function ( ) {
+  document.getElementById('loadtext').innerHTML = 'Loading Complete!';
+};
+
+THREE.DefaultLoadingManager.onProgress = function ( url, itemsLoaded, itemsTotal ) {
+  document.getElementById('loadtext').innerHTML = 'Loading file: ' + url + '.\nLoaded ' + itemsLoaded + ' of ' + itemsTotal + ' files.' ;
+};
+
+THREE.DefaultLoadingManager.onError = function ( url ) {
+  document.getElementById('loadtext').innerHTML = 'There was an error loading ' + url ;
+};
+
   const numRows = 4;
   const numColumns = 5;
   const spacing = 1.1;
@@ -1485,18 +1502,27 @@ VANTA.FOG({
   width: 94px;
   height: 72px;
 }
+#loadtext{
+  position: fixed;
+  bottom: 100px;
+  left: 10px;
+  font-family: Arial;
+  color: #eee;
+  font-size: 1.3rem;
+}
 </style>
 </head>
 <body style="
-margin: 0;
-
+  margin: 0;
     background-color: #000;
     background-position: center 51%;
     height: 100vh;
     width: 100vw;
     overflow: hidden;
     background-size: contain;
-    background-repeat: no-repeat;">
+    background-repeat: no-repeat;
+">
+  <div id="loadtext">123 say matthew</div>
     <img src="cyber/play.png" id="playbutton" />  
     <div id="my"></div>
     </body>
